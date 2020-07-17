@@ -21,6 +21,9 @@ import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
 import org.nd4j.linalg.dataset.api.preprocessor.ImagePreProcessingScaler;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.learning.AdaDeltaUpdater;
+import org.nd4j.linalg.learning.config.AdaDelta;
+import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.learning.config.Nesterovs;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.linalg.lossfunctions.LossFunctions.LossFunction;
@@ -47,32 +50,24 @@ public class DaNetwork {
 
     public static void main(String[] args) throws IOException {
 
-        Map<Integer, Double> learningRateSchedule = new HashMap<>();
-        learningRateSchedule.put(0, 0.06);
-        learningRateSchedule.put(200, 0.05);
-        learningRateSchedule.put(600, 0.028);
-        learningRateSchedule.put(800, 0.0060);
-        learningRateSchedule.put(1000, 0.001);
-
         long t0 = System.currentTimeMillis();
         DataSetIterator dsi = getDataSetIterator(MNIST_DATASET_ROOT_FOLDER + "training", N_SAMPLES_TRAINING);
 
-        int rngSeed = 123;
-        int nEpochs = 2; // Number of training epochs
+        int nEpochs = 8; // Number of training epochs
 
         log.info("Build model....");
         int channels = 1;
         MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
                 .seed(123)
                 .l2(0.0005) // ridge regression value
-                .updater(new Nesterovs(new MapSchedule(ScheduleType.ITERATION, learningRateSchedule), 0.9))
-                .weightInit(WeightInit.XAVIER)
+                .updater(new AdaDelta())
+                .weightInit(WeightInit.RELU)
                 .list()
                 .layer(new ConvolutionLayer.Builder(3, 3)
                         .nIn(channels )
                         .stride(1, 1)
-                        .nOut(20)
-                        .activation(Activation.RELU)
+                        .nOut(35)
+                        .activation(Activation.LEAKYRELU)
                         .build())
                 .layer(new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
                         .kernelSize(2, 2)
@@ -81,14 +76,14 @@ public class DaNetwork {
                 .layer(new ConvolutionLayer.Builder(3, 3)
                         .stride(1, 1) // nIn need not specified in later layers
                         .nOut(40)
-                        .activation(Activation.RELU)
+                        .activation(Activation.LEAKYRELU)
                         .build())
                 .layer(new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
                         .kernelSize(2, 2)
                         .stride(2, 2)
                         .build())
-                .layer(new DenseLayer.Builder().activation(Activation.RELU)
-                        .nOut(400)
+                .layer(new DenseLayer.Builder().activation(Activation.LEAKYRELU)
+                        .nOut(600)
                         .build())
                 .layer(new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
                         .nOut(N_OUTCOMES)
@@ -101,7 +96,7 @@ public class DaNetwork {
         MultiLayerNetwork model = new MultiLayerNetwork(conf);
         model.init();
         //print the score with every 100 iteration
-        model.setListeners(new ScoreIterationListener(100));
+        model.setListeners(new ScoreIterationListener(1));
         log.info("Train model....");
         model.fit(dsi, nEpochs);
 
@@ -155,7 +150,7 @@ public class DaNetwork {
         //Shuffle its content randomly
         Collections.shuffle( listDataSet, new Random(System.currentTimeMillis()) );
         //Set a batch size
-        int batchSize = 10;
+        int batchSize = 1000;
         //Build and return a dataset iterator that the network can use
         DataSetIterator dsi = new ListDataSetIterator<DataSet>( listDataSet, batchSize );
         return dsi;

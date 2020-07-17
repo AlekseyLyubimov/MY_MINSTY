@@ -1,0 +1,119 @@
+Deeplearning4j OOM Exception Encountered for MultiLayerNetwork
+Timestamp:                              2020-07-17 13:08:44.117
+Thread ID                               1
+Thread Name                             main
+
+
+Stack Trace:
+java.lang.OutOfMemoryError: Physical memory usage is too high: physicalBytes (8337M) > maxPhysicalBytes (8160M)
+	at org.bytedeco.javacpp.Pointer.deallocator(Pointer.java:585)
+	at org.bytedeco.javacpp.Pointer.init(Pointer.java:125)
+	at org.nd4j.nativeblas.Nd4jCpu$Context.allocate(Native Method)
+	at org.nd4j.nativeblas.Nd4jCpu$Context.<init>(Nd4jCpu.java:6106)
+	at org.nd4j.linalg.cpu.nativecpu.ops.CpuOpContext.<init>(CpuOpContext.java:36)
+	at org.nd4j.linalg.cpu.nativecpu.ops.NativeOpExecutioner.buildContext(NativeOpExecutioner.java:2029)
+	at org.deeplearning4j.nn.layers.mkldnn.MKLDNNConvHelper.preOutput(MKLDNNConvHelper.java:131)
+	at org.deeplearning4j.nn.layers.convolution.ConvolutionLayer.preOutput(ConvolutionLayer.java:358)
+	at org.deeplearning4j.nn.layers.convolution.ConvolutionLayer.preOutput4d(ConvolutionLayer.java:260)
+	at org.deeplearning4j.nn.layers.convolution.ConvolutionLayer.backpropGradient(ConvolutionLayer.java:150)
+	at org.deeplearning4j.nn.multilayer.MultiLayerNetwork.calcBackpropGradients(MultiLayerNetwork.java:1898)
+	at org.deeplearning4j.nn.multilayer.MultiLayerNetwork.computeGradientAndScore(MultiLayerNetwork.java:2684)
+	at org.deeplearning4j.nn.multilayer.MultiLayerNetwork.computeGradientAndScore(MultiLayerNetwork.java:2627)
+	at org.deeplearning4j.optimize.solvers.BaseOptimizer.gradientAndScore(BaseOptimizer.java:160)
+	at org.deeplearning4j.optimize.solvers.StochasticGradientDescent.optimize(StochasticGradientDescent.java:63)
+	at org.deeplearning4j.optimize.Solver.optimize(Solver.java:52)
+	at org.deeplearning4j.nn.multilayer.MultiLayerNetwork.fitHelper(MultiLayerNetwork.java:1675)
+	at org.deeplearning4j.nn.multilayer.MultiLayerNetwork.fit(MultiLayerNetwork.java:1596)
+	at org.deeplearning4j.nn.multilayer.MultiLayerNetwork.fit(MultiLayerNetwork.java:1583)
+	at DaNetwork.main(DaNetwork.java:101)
+
+
+========== Memory Information ==========
+----- Version Information -----
+Deeplearning4j Version                  1.0.0-beta4
+Deeplearning4j CUDA                     <not present>
+
+----- System Information -----
+Operating System                        Microsoft Windows 10
+CPU                                     AMD Ryzen 5 2600 Six-Core Processor            
+CPU Cores - Physical                    6
+CPU Cores - Logical                     12
+Total System Memory                      15.93 GiB (17106399232)
+
+----- ND4J Environment Information -----
+Data Type                               FLOAT
+blas.vendor                             MKL
+os                                      Windows 10
+backend                                 CPU
+
+----- Memory Configuration -----
+JVM Memory: XMX                           3.98 GiB (4278190080)
+JVM Memory: current                     157.00 MiB (164626432)
+JavaCPP Memory: Max Bytes                 3.98 GiB (4278190080)
+JavaCPP Memory: Max Physical              7.97 GiB (8556380160)
+JavaCPP Memory: Current Bytes           194.17 MiB (203604209)
+JavaCPP Memory: Current Physical        993.07 MiB (1041309696)
+Periodic GC Enabled                     false
+
+----- Workspace Information -----
+Workspaces: # for current thread        4
+Current thread workspaces:
+  Name                      State       Size                          # Cycles            
+  WS_LAYER_WORKING_MEM      CLOSED      118.36 MiB (124113600)        911                 
+  WS_ALL_LAYERS_ACT         CLOSED       93.53 MiB (98070000)         151                 
+  WS_LAYER_ACT_2            CLOSED       52.61 MiB (55161600)         228                 
+  WS_LAYER_ACT_1            CLOSED       13.15 MiB (13790400)         228                 
+Workspaces total size                   277.65 MiB (291135600)
+
+----- Network Information -----
+Network # Parameters                    614050
+Parameter Memory                          2.34 MiB (2456200)
+Parameter Gradients Memory                2.34 MiB (2456200)
+Updater Number of Elements              1228100
+Updater Memory                            4.68 MiB (4912400)
+Updater Classes:
+  org.nd4j.linalg.learning.AdaDeltaUpdater
+Params + Gradient + Updater Memory        7.03 MiB (7368600)
+Iteration Count                         75
+Epoch Count                             1
+Backprop Type                           Standard
+Workspace Mode: Training                ENABLED
+Workspace Mode: Inference               ENABLED
+Number of Layers                        6
+Layer Counts
+  ConvolutionLayer                        2
+  DenseLayer                              1
+  OutputLayer                             1
+  SubsamplingLayer                        2
+Layer Parameter Breakdown
+  Idx Name                 Layer Type           Layer # Parameters   Layer Parameter Memory
+  0   layer0               ConvolutionLayer     200                    800.00 B          
+  1   layer1               SubsamplingLayer     0                         .00 B          
+  2   layer2               ConvolutionLayer     7240                  28.28 KiB (28960)  
+  3   layer3               SubsamplingLayer     0                         .00 B          
+  4   layer4               DenseLayer           600600                 2.29 MiB (2402400)
+  5   layer5               OutputLayer          6010                  23.48 KiB (24040)  
+
+----- Layer Helpers - Memory Use -----
+Total Helper Count                      4
+Helper Count w/ Memory                  0
+Total Helper Persistent Memory Use           .00 B
+
+----- Network Activations: Inferred Activation Shapes -----
+Current Minibatch Size                  1000
+Input Shape                             [1000, 784]
+Idx Name                 Layer Type           Activations Type                           Activations Shape    # Elements   Memory      
+0   layer0               ConvolutionLayer     InputTypeConvolutional(h=26,w=26,c=20)     [1000, 20, 26, 26]   13520000      51.57 MiB (54080000)
+1   layer1               SubsamplingLayer     InputTypeConvolutional(h=13,w=13,c=20)     [1000, 20, 13, 13]   3380000       12.89 MiB (13520000)
+2   layer2               ConvolutionLayer     InputTypeConvolutional(h=11,w=11,c=40)     [1000, 40, 11, 11]   4840000       18.46 MiB (19360000)
+3   layer3               SubsamplingLayer     InputTypeConvolutional(h=5,w=5,c=40)       [1000, 40, 5, 5]     1000000        3.81 MiB (4000000)
+4   layer4               DenseLayer           InputTypeFeedForward(600)                  [1000, 600]          600000         2.29 MiB (2400000)
+5   layer5               OutputLayer          InputTypeFeedForward(10)                   [1000, 10]           10000         39.06 KiB (40000)
+Total Activations Memory                 89.07 MiB (93400000)
+Total Activations Memory (per ex)        91.21 KiB (93400)
+Total Activation Gradient Mem.           92.03 MiB (96496000)
+Total Activation Gradient Mem. (per ex)  94.23 KiB (96496)
+
+----- Network Training Listeners -----
+Number of Listeners                     1
+Listener 0                              ScoreIterationListener(100)

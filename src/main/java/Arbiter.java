@@ -1,0 +1,134 @@
+
+import org.bytedeco.opencv.presets.opencv_core;
+import org.deeplearning4j.arbiter.conf.updater.SgdSpace;
+import org.deeplearning4j.arbiter.MultiLayerSpace;
+import org.deeplearning4j.arbiter.layers.DenseLayerSpace;
+import org.deeplearning4j.arbiter.layers.OutputLayerSpace;
+import org.deeplearning4j.arbiter.optimize.api.CandidateGenerator;
+import org.deeplearning4j.arbiter.optimize.api.OptimizationResult;
+import org.deeplearning4j.arbiter.optimize.api.ParameterSpace;
+import org.deeplearning4j.arbiter.optimize.api.data.DataProvider;
+import org.deeplearning4j.arbiter.data.MnistDataProvider;
+import org.deeplearning4j.arbiter.scoring.impl.EvaluationScoreFunction;
+import org.deeplearning4j.arbiter.optimize.api.saving.ResultReference;
+import org.deeplearning4j.arbiter.optimize.api.saving.ResultSaver;
+import org.deeplearning4j.arbiter.optimize.api.score.ScoreFunction;
+import org.deeplearning4j.arbiter.optimize.api.termination.MaxCandidatesCondition;
+import org.deeplearning4j.arbiter.optimize.api.termination.MaxTimeCondition;
+import org.deeplearning4j.arbiter.optimize.api.termination.TerminationCondition;
+import org.deeplearning4j.arbiter.optimize.config.OptimizationConfiguration;
+import org.deeplearning4j.arbiter.optimize.generator.RandomSearchGenerator;
+import org.deeplearning4j.arbiter.optimize.parameter.continuous.ContinuousParameterSpace;
+import org.deeplearning4j.arbiter.optimize.parameter.integer.IntegerParameterSpace;
+import org.deeplearning4j.arbiter.optimize.runner.IOptimizationRunner;
+import org.deeplearning4j.arbiter.optimize.runner.LocalOptimizationRunner;
+import org.deeplearning4j.arbiter.saver.local.FileModelSaver;
+import org.deeplearning4j.arbiter.scoring.impl.TestSetAccuracyScoreFunction;
+import org.deeplearning4j.arbiter.task.MultiLayerNetworkTaskCreator;
+import org.nd4j.evaluation.classification.Evaluation.Metric;
+import org.deeplearning4j.datasets.iterator.MultipleEpochsIterator;
+import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.nn.weights.WeightInit;
+import org.nd4j.linalg.activations.Activation;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
+import org.nd4j.shade.jackson.annotation.JsonProperty;
+import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.cpu.nativecpu.CpuAffinityManager;
+
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import static java.sql.DriverManager.println;
+
+public class Arbiter {
+
+    public static void main(String[] args) throws IOException {
+
+
+        ContinuousParameterSpace learningRateHyperparam  = new ContinuousParameterSpace(0.0001, 0.1);
+        IntegerParameterSpace layerSizeHyperparam  = new IntegerParameterSpace(16,256);
+
+        System.out.println("check 1");
+
+        MultiLayerSpace hyperparameterSpace  = new MultiLayerSpace.Builder()
+                //These next few options: fixed values for all models
+                .weightInit(WeightInit.XAVIER)
+                .l2(0.0001)
+                //Learning rate hyperparameter: search over different values, applied to all models
+                .updater(new SgdSpace(learningRateHyperparam))
+                .addLayer( new DenseLayerSpace.Builder()
+                        //Fixed values for this layer:
+                        .nIn(784)  //Fixed input: 28x28=784 pixels for MNIST
+                        .activation(Activation.LEAKYRELU)
+                        //One hyperparameter to infer: layer size
+                        .nOut(layerSizeHyperparam)
+                        .build())
+                .addLayer( new OutputLayerSpace.Builder()
+                        .nOut(10)
+                        .activation(Activation.SOFTMAX)
+                        .lossFunction(LossFunctions.LossFunction.MCXENT)
+                        .build())
+                .build();
+
+        RandomSearchGenerator candidateGenerator = new RandomSearchGenerator(hyperparameterSpace, null);
+
+        int nTrainEpochs = 2;
+        int batchSize = 64;
+
+        MnistDataProvider dataProvider = new MnistDataProvider(nTrainEpochs, batchSize);
+
+        EvaluationScoreFunction scoreFunction = new EvaluationScoreFunction(Metric.ACCURACY);
+
+        MaxTimeCondition terminationConditions = new MaxTimeCondition(15, TimeUnit.MINUTES);
+
+        String baseSaveDirectory = "arbiterExample/";
+        File f = new File(baseSaveDirectory);
+        if(f.exists()) f.delete();
+        f.mkdir();
+        FileModelSaver modelSaver = new FileModelSaver(baseSaveDirectory);
+
+        System.out.println("check 2");
+
+        OptimizationConfiguration configuration = new OptimizationConfiguration.Builder()
+                .candidateGenerator(candidateGenerator)
+                .dataProvider(dataProvider)
+                .modelSaver(modelSaver)
+                .scoreFunction(scoreFunction)
+                .terminationConditions(terminationConditions)
+                .build();
+
+        LocalOptimizationRunner runner = new LocalOptimizationRunner(configuration, new MultiLayerNetworkTaskCreator());
+
+        //Start the hyperparameter optimization
+
+        System.out.println("check 3");
+
+        runner.execute();
+
+        System.out.println("check 4");
+
+        String s = "Best score: " + runner.bestScore() + "\n" + "Index of model with best score: " + runner.bestScoreCandidateIndex() + "\n" + "Number of configurations evaluated: " + runner.numCandidatesCompleted() + "\n";
+        System.out.println(s);
+        System.out.println(s);
+
+
+        //Get all results, and print out details of the best result:
+        int indexOfBestResult = runner.bestScoreCandidateIndex();
+        List<ResultReference>	 allResults = runner.getResults();
+
+        OptimizationResult bestResult = allResults.get(indexOfBestResult).getResult();
+        MultiLayerNetwork bestModel = (MultiLayerNetwork) bestResult.getResultReference().getResultModel();
+
+
+        System.out.println("\n\nConfiguration of best model:\n");
+        System.out.println(bestModel.getLayerWiseConfigurations().toJson());
+    }
+
+
+}
