@@ -53,7 +53,7 @@ public class DaNetwork {
         long t0 = System.currentTimeMillis();
         DataSetIterator dsi = getDataSetIterator(MNIST_DATASET_ROOT_FOLDER + "training", N_SAMPLES_TRAINING);
 
-        int nEpochs = 8; // Number of training epochs
+        int nEpochs = 2; // Number of training epochs
 
         log.info("Build model....");
         int channels = 1;
@@ -61,31 +61,32 @@ public class DaNetwork {
                 .seed(123)
                 .l2(0.0005) // ridge regression value
                 .updater(new AdaDelta())
-                .weightInit(WeightInit.RELU)
+                .weightInit(WeightInit.XAVIER)
                 .list()
                 .layer(new ConvolutionLayer.Builder(3, 3)
-                        .nIn(channels )
+                        .nIn(channels)
                         .stride(1, 1)
-                        .nOut(35)
+                        .nOut(23)
                         .activation(Activation.LEAKYRELU)
                         .build())
                 .layer(new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
-                        .kernelSize(2, 2)
-                        .stride(2, 2)
+                        .kernelSize(3, 3)
+                        .stride(1, 1)
                         .build())
                 .layer(new ConvolutionLayer.Builder(3, 3)
                         .stride(1, 1) // nIn need not specified in later layers
-                        .nOut(40)
+                        .nOut(31)
                         .activation(Activation.LEAKYRELU)
                         .build())
                 .layer(new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
                         .kernelSize(2, 2)
                         .stride(2, 2)
                         .build())
-                .layer(new DenseLayer.Builder().activation(Activation.LEAKYRELU)
-                        .nOut(600)
+                .layer(new DenseLayer.Builder()
+                        .activation(Activation.LEAKYRELU)
+                        .nOut(739)
                         .build())
-                .layer(new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+                .layer(new OutputLayer.Builder()
                         .nOut(N_OUTCOMES)
                         .activation(Activation.SOFTMAX)
                         .build())
@@ -150,7 +151,7 @@ public class DaNetwork {
         //Shuffle its content randomly
         Collections.shuffle( listDataSet, new Random(System.currentTimeMillis()) );
         //Set a batch size
-        int batchSize = 1000;
+        int batchSize = 64;
         //Build and return a dataset iterator that the network can use
         DataSetIterator dsi = new ListDataSetIterator<DataSet>( listDataSet, batchSize );
         return dsi;

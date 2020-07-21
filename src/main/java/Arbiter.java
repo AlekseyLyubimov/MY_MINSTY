@@ -1,9 +1,12 @@
 
 import org.bytedeco.opencv.presets.opencv_core;
+import org.deeplearning4j.arbiter.conf.updater.AdaGradSpace;
 import org.deeplearning4j.arbiter.conf.updater.SgdSpace;
 import org.deeplearning4j.arbiter.MultiLayerSpace;
+import org.deeplearning4j.arbiter.layers.ConvolutionLayerSpace;
 import org.deeplearning4j.arbiter.layers.DenseLayerSpace;
 import org.deeplearning4j.arbiter.layers.OutputLayerSpace;
+import org.deeplearning4j.arbiter.layers.SubsamplingLayerSpace;
 import org.deeplearning4j.arbiter.optimize.api.CandidateGenerator;
 import org.deeplearning4j.arbiter.optimize.api.OptimizationResult;
 import org.deeplearning4j.arbiter.optimize.api.ParameterSpace;
@@ -25,6 +28,8 @@ import org.deeplearning4j.arbiter.optimize.runner.LocalOptimizationRunner;
 import org.deeplearning4j.arbiter.saver.local.FileModelSaver;
 import org.deeplearning4j.arbiter.scoring.impl.TestSetAccuracyScoreFunction;
 import org.deeplearning4j.arbiter.task.MultiLayerNetworkTaskCreator;
+import org.deeplearning4j.nn.conf.inputs.InputType;
+import org.deeplearning4j.nn.conf.layers.SubsamplingLayer;
 import org.nd4j.evaluation.classification.Evaluation.Metric;
 import org.deeplearning4j.datasets.iterator.MultipleEpochsIterator;
 import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator;
@@ -32,6 +37,8 @@ import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.learning.config.AdaDelta;
+import org.nd4j.linalg.learning.config.AdaGrad;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.nd4j.shade.jackson.annotation.JsonProperty;
 import org.nd4j.linalg.factory.Nd4j;
@@ -50,42 +57,58 @@ public class Arbiter {
 
     public static void main(String[] args) throws IOException {
 
-
-        ContinuousParameterSpace learningRateHyperparam  = new ContinuousParameterSpace(0.0001, 0.1);
-        IntegerParameterSpace layerSizeHyperparam  = new IntegerParameterSpace(16,256);
+        IntegerParameterSpace firstConvLayerSize  = new IntegerParameterSpace(10,40);
+        IntegerParameterSpace secondConvLayerSize  = new IntegerParameterSpace(10,60);
+        IntegerParameterSpace denseLayerSize  = new IntegerParameterSpace(300,1200);
 
         System.out.println("check 1");
 
-        MultiLayerSpace hyperparameterSpace  = new MultiLayerSpace.Builder()
-                //These next few options: fixed values for all models
+        MultiLayerSpace hyperparameterSpace = new MultiLayerSpace.Builder()
                 .weightInit(WeightInit.XAVIER)
-                .l2(0.0001)
-                //Learning rate hyperparameter: search over different values, applied to all models
-                .updater(new SgdSpace(learningRateHyperparam))
-                .addLayer( new DenseLayerSpace.Builder()
-                        //Fixed values for this layer:
-                        .nIn(784)  //Fixed input: 28x28=784 pixels for MNIST
+                .updater(new AdaDelta())
+                .l2(0.0005)
+                .seed(123)
+                .setInputType(InputType.convolutionalFlat(28,28,1))
+                .addLayer(new ConvolutionLayerSpace.Builder()
+                        .kernelSize(3,3)
+                        .nOut(firstConvLayerSize)
                         .activation(Activation.LEAKYRELU)
-                        //One hyperparameter to infer: layer size
-                        .nOut(layerSizeHyperparam)
                         .build())
-                .addLayer( new OutputLayerSpace.Builder()
+                .addLayer(new SubsamplingLayerSpace.Builder()
+                        .poolingType(SubsamplingLayer.PoolingType.MAX)
+                        .kernelSize(3,3)
+                        .stride(1,1)
+                        .build())
+                .addLayer(new ConvolutionLayerSpace.Builder()
+                        .kernelSize(3,3)
+                        .nOut(secondConvLayerSize)
+                        .activation(Activation.LEAKYRELU)
+                        .build())
+                .addLayer(new SubsamplingLayerSpace.Builder()
+                        .poolingType(SubsamplingLayer.PoolingType.MAX)
+                        .kernelSize(2,2)
+                        .stride(2,2)
+                        .build())
+                .addLayer(new DenseLayerSpace.Builder()
+                        .nOut(denseLayerSize)
+                        .activation(Activation.LEAKYRELU)
+                        .build())
+                .addLayer(new OutputLayerSpace.Builder()
                         .nOut(10)
                         .activation(Activation.SOFTMAX)
-                        .lossFunction(LossFunctions.LossFunction.MCXENT)
                         .build())
                 .build();
 
         RandomSearchGenerator candidateGenerator = new RandomSearchGenerator(hyperparameterSpace, null);
 
-        int nTrainEpochs = 2;
+        int nTrainEpochs = 1;
         int batchSize = 64;
 
         MnistDataProvider dataProvider = new MnistDataProvider(nTrainEpochs, batchSize);
 
         EvaluationScoreFunction scoreFunction = new EvaluationScoreFunction(Metric.ACCURACY);
 
-        MaxTimeCondition terminationConditions = new MaxTimeCondition(15, TimeUnit.MINUTES);
+        MaxTimeCondition terminationConditions = new MaxTimeCondition(30, TimeUnit.MINUTES);
 
         String baseSaveDirectory = "arbiterExample/";
         File f = new File(baseSaveDirectory);
